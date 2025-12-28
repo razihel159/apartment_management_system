@@ -22,92 +22,159 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
     fetchPayments();
   }
 
+  // Ginawang function para pwedeng tawagin ng RefreshIndicator
   Future<void> fetchPayments() async {
     try {
-      // TANDAAN: Palitan ang localhost ng 10.0.2.2 kung gamit ay Android Emulator
+      // TANDAAN: Gamitin ang 10.0.2.2 para sa Android Emulator o IP Address para sa Real Device
       final url = Uri.parse('http://localhost:3000/my-payments/${widget.tenantId}');
       final res = await http.get(url);
 
       if (res.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(res.body);
-        setState(() {
-          payments = data['data'];
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            payments = data['data'];
+            isLoading = false;
+            errorMessage = "";
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            errorMessage = "Failed to load payments";
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          errorMessage = "Failed to load payments";
+          errorMessage = "Error connecting to server";
           isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        errorMessage = "Error: $e";
-        isLoading = false;
-      });
       print("Fetch Error: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      // Inalis ang AppBar dito dahil tinatawag ito sa loob ng PageView/Index ng Main Screen
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (errorMessage.isNotEmpty) {
-      return Center(child: Text(errorMessage, style: const TextStyle(color: Colors.red)));
-    }
-
-    if (payments.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long, size: 60, color: Colors.grey),
-            SizedBox(height: 10),
-            Text("No payment records found.", style: TextStyle(color: Colors.grey)),
+            const Icon(Icons.error_outline, color: Colors.red, size: 50),
+            const SizedBox(height: 10),
+            Text(errorMessage, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                setState(() => isLoading = true);
+                fetchPayments();
+              },
+              child: const Text("Retry"),
+            )
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(15),
-      itemCount: payments.length,
-      itemBuilder: (context, i) {
-        final p = payments[i];
-        
-        // Pag-format ng date (Halimbawa: Dec 27, 2025)
-        DateTime date = DateTime.parse(p['payment_date']);
-        String formattedDate = DateFormat('MMM dd, yyyy').format(date);
+    if (payments.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: fetchPayments,
+        child: ListView(
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+            const Center(
+              child: Column(
+                children: [
+                  Icon(Icons.receipt_long, size: 60, color: Colors.grey),
+                  SizedBox(height: 10),
+                  Text("No payment records found.", style: TextStyle(color: Colors.grey)),
+                  Text("Swipe down to refresh", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-        return Card(
-          elevation: 3,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            leading: const CircleAvatar(
-              backgroundColor: Colors.green,
-              child: Icon(Icons.check, color: Colors.white),
+    return RefreshIndicator(
+      onRefresh: fetchPayments,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(15),
+        itemCount: payments.length,
+        itemBuilder: (context, i) {
+          final p = payments[i];
+          
+          // Formatting ng Petsa
+          DateTime date = DateTime.parse(p['payment_date']);
+          String formattedDate = DateFormat('MMMM dd, yyyy').format(date);
+
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withAlpha(25),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle, color: Colors.green),
+              ),
+              title: Text(
+                "₱${double.parse(p['amount'].toString()).toStringAsFixed(2)}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 18,
+                  color: Colors.black87
+                ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Date: $formattedDate", style: const TextStyle(fontSize: 13)),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        p['status'].toString().toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+              onTap: () {
+                // Pwedeng lagyan dito ng "Show Receipt Details" dialog sa future
+              },
             ),
-            title: Text(
-              "₱${double.parse(p['amount'].toString()).toStringAsFixed(2)}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Date: $formattedDate"),
-                Text("Status: ${p['status'].toString().toUpperCase()}", 
-                  style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
-              ],
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

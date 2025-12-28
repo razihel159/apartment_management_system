@@ -47,12 +47,54 @@ class _PaymentScreenState extends State<PaymentScreen> {
         body: jsonEncode({'tenant_id': tenantId, 'amount': amount}),
       );
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Payment Received & Added to History!")),
-        );
-        fetchAllData(); // Refresh both lists
+        _showSuccess("Payment Received & Added to History!");
+        fetchAllData();
       }
     } catch (e) { print(e); }
+  }
+
+  Future<void> _approveOnlinePayment(int paymentId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:3000/approve-payment'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'payment_id': paymentId}),
+      );
+      if (response.statusCode == 200) {
+        _showSuccess("Online Payment Approved!");
+        fetchAllData();
+      }
+    } catch (e) { print(e); }
+  }
+
+  void _showSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _viewProofImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Payment Proof"),
+        content: SizedBox(
+          width: 400,
+          child: Image.network(
+            "http://localhost:3000$imageUrl",
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                Text("Could not load image"),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))
+        ],
+      ),
+    );
   }
 
   @override
@@ -62,8 +104,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Rent Payments", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Text("Rent Payments", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          ),
           const TabBar(
             labelColor: Colors.indigo,
             unselectedLabelColor: Colors.grey,
@@ -79,9 +123,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ? const Center(child: CircularProgressIndicator())
               : TabBarView(
                   children: [
-                    // TAB 1: PENDING
                     _buildTable(pendingList, isHistory: false),
-                    // TAB 2: HISTORY
                     _buildTable(historyList, isHistory: true),
                   ],
                 ),
@@ -99,28 +141,113 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
     
     return Card(
-      child: SingleChildScrollView(
-        child: DataTable(
-          columns: [
-            const DataColumn(label: Text('Tenant Name')),
-            const DataColumn(label: Text('Room')),
-            const DataColumn(label: Text('Amount')),
-            DataColumn(label: Text(isHistory ? 'Date Paid' : 'Action')),
+      elevation: 2,
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // HEADER TABLE
+            Table(
+              columnWidths: const {
+                0: FlexColumnWidth(3), // Tenant Name
+                1: FlexColumnWidth(1.5), // Room
+                2: FlexColumnWidth(2), // Amount
+                3: FlexColumnWidth(3), // Action or Date
+              },
+              children: [
+                TableRow(
+                  decoration: BoxDecoration(color: Colors.grey[200]),
+                  children: [
+                    _headerCell("Tenant Name"),
+                    _headerCell("Room"),
+                    _headerCell("Amount"),
+                    _headerCell(isHistory ? "Date Paid" : "Proof / Action"),
+                  ],
+                ),
+              ],
+            ),
+            // DATA TABLE (Scrollable part)
+            Expanded(
+              child: SingleChildScrollView(
+                child: Table(
+                  columnWidths: const {
+                    0: FlexColumnWidth(3),
+                    1: FlexColumnWidth(1.5),
+                    2: FlexColumnWidth(2),
+                    3: FlexColumnWidth(3),
+                  },
+                  border: TableBorder(horizontalInside: BorderSide(color: Colors.grey[300]!, width: 0.5)),
+                  children: data.map((item) {
+                    bool hasProof = !isHistory && 
+                                    item['payment_status'] == 'pending' && 
+                                    item['proof_image'] != null;
+
+                    return TableRow(
+                      children: [
+                        _dataCell(item['fullname']?.toString() ?? 'N/A'),
+                        _dataCell("Room ${item['room_number'] ?? '?'}"),
+                        _dataCell("₱${item['amount'] ?? item['monthly_rate'] ?? '0.00'}"),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          child: isHistory 
+                            ? Text(item['payment_date']?.toString().split('T')[0] ?? 'N/A', style: const TextStyle(fontSize: 13))
+                            : Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  if (hasProof)
+                                    ElevatedButton(
+                                      onPressed: () => _viewProofImage(item['proof_image']),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.orange, 
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      ),
+                                      child: const Text("View", style: TextStyle(fontSize: 11)),
+                                    ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      if (hasProof) {
+                                        _approveOnlinePayment(item['payment_id']);
+                                      } else {
+                                        double amt = double.tryParse((item['monthly_rate'] ?? item['amount'] ?? '0').toString()) ?? 0.0;
+                                        _processPayment(item['tenant_id'], amt);
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: hasProof ? Colors.blue : Colors.green, 
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    ),
+                                    child: Text(hasProof ? "Approve" : "Receive", style: const TextStyle(fontSize: 11)),
+                                  ),
+                                ],
+                              ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
           ],
-          rows: data.map((item) => DataRow(cells: [
-            DataCell(Text(item['fullname'])),
-            DataCell(Text("Room ${item['room_number']}")),
-            DataCell(Text("₱${item['amount'] ?? item['monthly_rate']}")),
-            DataCell(isHistory 
-              ? Text(item['payment_date'].toString().split('T')[0]) 
-              : ElevatedButton(
-                  onPressed: () => _processPayment(item['tenant_id'], double.parse(item['monthly_rate'].toString())),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                  child: const Text("Receive"),
-                )),
-          ])).toList(),
         ),
       ),
+    );
+  }
+
+  Widget _headerCell(String txt) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Text(txt, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+    );
+  }
+
+  Widget _dataCell(String txt) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Text(txt, style: const TextStyle(fontSize: 13)),
     );
   }
 }

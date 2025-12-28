@@ -9,7 +9,7 @@ const fs = require('fs');
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true })); // Para sa form-data support
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Siguraduhing existing ang uploads folder
 const uploadDir = './uploads';
@@ -35,10 +35,37 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// ================= NEW: AUTOMATIC OVERDUE LOGIC =================
+const updateOverdueStatus = async () => {
+    try {
+        const today = new Date();
+        const currentDay = today.getDate();
+
+        const [tenants] = await db.query("SELECT id, name FROM tenants");
+        
+        for (let tenant of tenants) {
+            const [payments] = await db.query(`
+                SELECT * FROM payments 
+                WHERE tenant_id = ? 
+                AND MONTH(payment_date) = MONTH(CURRENT_DATE()) 
+                AND YEAR(payment_date) = YEAR(CURRENT_DATE())
+            `, [tenant.id]);
+
+            if (payments.length === 0 && currentDay > 5) {
+                // Update status logic dito
+            }
+        }
+        console.log("Overdue check completed.");
+    } catch (err) {
+        console.error("Overdue Logic Error:", err.message);
+    }
+};
+
 // ================= 1. LOGIN SYSTEM =================
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
+        await updateOverdueStatus();
         const [admin] = await db.query('SELECT *, "admin" as role FROM users WHERE email = ? AND password = ?', [email, password]);
         if (admin.length > 0) return res.json({ success: true, role: 'admin', user: admin[0] });
 
@@ -49,33 +76,54 @@ app.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ================= 2. ADMIN DASHBOARD STATS =================
+// ================= 2. ADMIN DASHBOARD STATS (UPDATED) =================
 app.get('/dashboard-stats', async (req, res) => {
     try {
         const [total] = await db.query('SELECT COUNT(*) as count FROM rooms');
         const [occ] = await db.query('SELECT COUNT(*) as count FROM rooms WHERE status = "occupied"');
         const [vacant] = await db.query('SELECT COUNT(*) as count FROM rooms WHERE status = "available" OR status IS NULL');
         const [rev] = await db.query('SELECT SUM(amount) as total FROM payments');
+        
+        const [overdue] = await db.query(`
+            SELECT COUNT(*) as count FROM tenants 
+            WHERE id NOT IN (
+                SELECT tenant_id FROM payments 
+                WHERE MONTH(payment_date) = MONTH(CURRENT_DATE()) 
+                AND YEAR(payment_date) = YEAR(CURRENT_DATE())
+            )
+        `);
 
         res.json({
             totalRooms: total[0].count,
             occupiedRooms: occ[0].count,
             vacantRooms: vacant[0].count,
-            totalCollected: rev[0].total || 0
+            totalCollected: rev[0].total || 0,
+            overdueTenants: overdue[0].count
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ================= 3. TENANT PORTAL DATA =================
+// ================= 3. TENANT PORTAL DATA & PROFILE =================
 app.get('/tenant-details/:id', async (req, res) => {
     try {
         const [results] = await db.query(`
-            SELECT t.name, IFNULL(r.room_number, 'N/A') as room_number, IFNULL(r.rate, 0) as rate 
+            SELECT t.name, t.email, t.contact, t.password, IFNULL(r.room_number, 'N/A') as room_number, IFNULL(r.rate, 0) as rate 
             FROM tenants t
             LEFT JOIN rooms r ON t.room_id = r.id
             WHERE t.id = ?`, [req.params.id]);
         res.json({ success: true, data: results[0] || {} });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/update-tenant-profile/:id', async (req, res) => {
+    const { contact, email, password } = req.body;
+    const tenantId = req.params.id;
+    try {
+        await db.query("UPDATE tenants SET contact = ?, email = ?, password = ? WHERE id = ?", [contact, email, password, tenantId]);
+        res.json({ success: true, message: "Profile updated successfully!" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to update profile" });
+    }
 });
 
 app.get('/unread-reports-count/:id', async (req, res) => {
@@ -142,16 +190,12 @@ app.post('/add-tenant', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ================= 6. REPORTS & MAINTENANCE (RELIABLE VERSION) =================
+// ================= 6. REPORTS & MAINTENANCE =================
 app.post('/submit-report', upload.single('image'), async (req, res) => {
-    console.log("--- New Report Request ---");
-    console.log("Data Received:", req.body);
-
     const { tenant_id, issue_type, description } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     if (!tenant_id || tenant_id === 'undefined') {
-        console.error("Error: tenant_id is missing!");
         return res.status(400).json({ success: false, message: "Tenant ID is required" });
     }
 
@@ -160,10 +204,8 @@ app.post('/submit-report', upload.single('image'), async (req, res) => {
             'INSERT INTO reports (tenant_id, issue_type, description, image_url, status, created_at) VALUES (?, ?, ?, ?, "Pending", NOW())', 
             [tenant_id, issue_type, description, imageUrl]
         );
-        console.log("Report successfully saved!");
         res.json({ success: true });
     } catch (err) {
-        console.error("Database Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -186,19 +228,32 @@ app.post('/update-report-status', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ================= 7. PAYMENTS & MONITORING =================
+// ================= 7. PAYMENTS & MONITORING (UPDATED) =================
 app.get('/payment-list', async (req, res) => {
     try {
+        // Ginagamit ang LEFT JOIN para makuha pati ang may 'pending' status
         const [results] = await db.query(`
-            SELECT t.id as tenant_id, t.name as fullname, r.room_number, r.rate as monthly_rate 
+            SELECT 
+                t.id as tenant_id, 
+                t.name as fullname, 
+                r.room_number, 
+                r.rate as monthly_rate,
+                p.id as payment_id,
+                p.status as payment_status,
+                p.proof_image,
+                p.amount as paid_amount
             FROM tenants t 
             JOIN rooms r ON t.room_id = r.id 
-            WHERE t.id NOT IN (
-                SELECT tenant_id FROM payments 
-                WHERE MONTH(payment_date) = MONTH(CURRENT_DATE()) AND YEAR(payment_date) = YEAR(CURRENT_DATE())
-            )`);
+            LEFT JOIN payments p ON t.id = p.tenant_id 
+                AND MONTH(p.payment_date) = MONTH(CURRENT_DATE()) 
+                AND YEAR(p.payment_date) = YEAR(CURRENT_DATE())
+            WHERE p.status IS NULL OR p.status = 'pending'
+        `);
         res.json(results);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error("Payment List Error:", err.message);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 app.get('/payment-history', async (req, res) => {
@@ -208,6 +263,7 @@ app.get('/payment-history', async (req, res) => {
             FROM payments p 
             JOIN tenants t ON p.tenant_id = t.id 
             JOIN rooms r ON t.room_id = r.id 
+            WHERE p.status = 'paid'
             ORDER BY p.payment_date DESC`);
         res.json(results);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -216,7 +272,7 @@ app.get('/payment-history', async (req, res) => {
 app.get('/tenant-balances', async (req, res) => {
     try {
         const [results] = await db.query(`
-            SELECT t.name, r.room_number, 
+            SELECT t.name, r.room_number, r.rate,
             (r.rate - IFNULL((SELECT SUM(amount) FROM payments WHERE tenant_id = t.id AND MONTH(payment_date) = MONTH(CURRENT_DATE())), 0)) as balance,
             CASE 
                 WHEN (SELECT COUNT(*) FROM payments WHERE tenant_id = t.id AND MONTH(payment_date) = MONTH(CURRENT_DATE())) > 0 THEN 'Paid'
@@ -240,6 +296,45 @@ app.get('/my-payments/:id', async (req, res) => {
     try {
         const [results] = await db.query("SELECT * FROM payments WHERE tenant_id = ? ORDER BY payment_date DESC", [req.params.id]);
         res.json({ success: true, data: results });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/tenant-stats/:id', async (req, res) => {
+    const tenantId = req.params.id;
+    try {
+        const [totalPaid] = await db.query('SELECT SUM(amount) as total FROM payments WHERE tenant_id = ?', [tenantId]);
+        const [lastPayment] = await db.query('SELECT amount, payment_date FROM payments WHERE tenant_id = ? ORDER BY payment_date DESC LIMIT 1', [tenantId]);
+        const [reportsCount] = await db.query('SELECT COUNT(*) as count FROM reports WHERE tenant_id = ?', [tenantId]);
+
+        res.json({
+            success: true,
+            totalPaid: totalPaid[0].total || 0,
+            lastPaymentAmount: lastPayment.length > 0 ? lastPayment[0].amount : 0,
+            lastPaymentDate: lastPayment.length > 0 ? lastPayment[0].payment_date : "No records",
+            totalReports: reportsCount[0].count
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- DAGDAG: PARA SA PROOF OF PAYMENT ---
+app.post('/submit-proof', upload.single('proof_image'), async (req, res) => {
+    const { tenant_id, amount, reference_number } = req.body;
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    try {
+        const sql = `INSERT INTO payments (tenant_id, amount, payment_date, status, proof_image, reference_no) 
+                     VALUES (?, ?, NOW(), 'pending', ?, ?)`;
+        await db.query(sql, [tenant_id, amount, imageUrl, reference_number]);
+        res.json({ success: true, message: "Proof submitted!" });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/approve-payment', async (req, res) => {
+    const { payment_id } = req.body;
+    try {
+        await db.query("UPDATE payments SET status = 'paid' WHERE id = ?", [payment_id]);
+        res.json({ success: true, message: "Payment approved!" });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -104,7 +104,7 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
                   TextField(controller: phoneController, decoration: const InputDecoration(labelText: "Phone Number")),
                   const SizedBox(height: 15),
                   DropdownButtonFormField<int>(
-                    value: selectedRoomId,
+                    initialValue: selectedRoomId,
                     hint: const Text("Select Room"),
                     items: availableRooms.map((room) {
                       return DropdownMenuItem<int>(
@@ -177,7 +177,7 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
                             child: ConstrainedBox(
                               constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 150),
                               child: DataTable(
-                                headingRowColor: MaterialStateProperty.all(const Color(0xFFFAFAFA)),
+                                headingRowColor: WidgetStateProperty.all(const Color(0xFFFAFAFA)),
                                 columns: const [
                                   DataColumn(label: Text('Name')),
                                   DataColumn(label: Text('Room')),

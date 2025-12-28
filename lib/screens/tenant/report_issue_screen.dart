@@ -40,7 +40,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
         child: Column(
           children: [
             DropdownButtonFormField(
-              value: _selectedType,
+              initialValue: _selectedType,
               items: ['Plumbing', 'Electrical', 'Maintenance', 'Noise', 'Others']
                   .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _selectedType = val as String),
