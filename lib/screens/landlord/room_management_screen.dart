@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../services/api_service.dart'; // Siguraduhin na tama ang path
 
 class RoomManagementScreen extends StatefulWidget {
   const RoomManagementScreen({super.key});
@@ -10,9 +9,11 @@ class RoomManagementScreen extends StatefulWidget {
 }
 
 class _RoomManagementScreenState extends State<RoomManagementScreen> {
+  final ApiService _apiService = ApiService(); // Initialize Service
   List rooms = [];
   final _roomNumController = TextEditingController();
   final _rateController = TextEditingController();
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -20,71 +21,49 @@ class _RoomManagementScreenState extends State<RoomManagementScreen> {
     fetchRooms();
   }
 
-  // --- DATABASE FUNCTIONS ---
-
   Future<void> fetchRooms() async {
-    try {
-      final response = await http.get(Uri.parse('http://localhost:3000/rooms'));
-      if (response.statusCode == 200) {
-        setState(() => rooms = jsonDecode(response.body));
-      }
-    } catch (e) {
-      print("Error fetching: $e");
-    }
+    setState(() => _isLoading = true);
+    final data = await _apiService.getRooms();
+    setState(() {
+      rooms = data;
+      _isLoading = false;
+    });
   }
 
-  Future<void> _addRoom() async {
-    try {
-      final response = await http.post(
-        Uri.parse('http://localhost:3000/add-room'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'room_number': _roomNumController.text,
-          'rate': _rateController.text,
-          'status': 'available',
-        }),
-      );
-      if (response.statusCode == 200) {
-        fetchRooms();
-        _roomNumController.clear();
-        _rateController.clear();
-        Navigator.pop(context);
+  Future<void> _handleSave(int? id) async {
+    final roomData = {
+      'room_number': _roomNumController.text,
+      'rate': _rateController.text,
+      'status': 'available',
+    };
+
+    bool success;
+    if (id == null) {
+      success = await _apiService.addRoom(roomData);
+    } else {
+      success = await _apiService.updateRoom(id, roomData);
+    }
+
+    if (success) {
+      fetchRooms();
+      _roomNumController.clear();
+      _rateController.clear();
+      if (mounted) Navigator.pop(context);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Action failed. Please try again.")),
+        );
       }
-    } catch (e) {
-      print(e);
     }
   }
 
   Future<void> _deleteRoom(int id) async {
-    try {
-      final response = await http.delete(Uri.parse('http://localhost:3000/delete-room/$id'));
-      if (response.statusCode == 200) fetchRooms();
-    } catch (e) {
-      print(e);
+    bool success = await _apiService.deleteRoom(id);
+    if (success) {
+      fetchRooms();
     }
   }
-
-  Future<void> _updateRoom(int id) async {
-    try {
-      final response = await http.put(
-        Uri.parse('http://localhost:3000/update-room/$id'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'room_number': _roomNumController.text,
-          'rate': _rateController.text,
-          'status': 'available',
-        }),
-      );
-      if (response.statusCode == 200) {
-        fetchRooms();
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      print(e);
-    }
-  }
-
-  // --- UI DIALOGS ---
 
   void _showRoomDialog({Map? room}) {
     if (room != null) {
@@ -109,7 +88,7 @@ class _RoomManagementScreenState extends State<RoomManagementScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           ElevatedButton(
-            onPressed: () => room == null ? _addRoom() : _updateRoom(room['id']),
+            onPressed: () => _handleSave(room?['id']),
             child: Text(room == null ? "Save" : "Update"),
           ),
         ],
@@ -122,7 +101,6 @@ class _RoomManagementScreenState extends State<RoomManagementScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header Row
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -136,18 +114,18 @@ class _RoomManagementScreenState extends State<RoomManagementScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        
-        // Table Section
         Expanded(
           child: Card(
             child: Container(
-              width: double.infinity, // Pinapahaba nito ang card
+              width: double.infinity,
               padding: const EdgeInsets.all(16),
-              child: rooms.isEmpty
+              child: _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : rooms.isEmpty
                   ? const Center(child: Text("No rooms found."))
                   : SingleChildScrollView(
                       child: DataTable(
-                        columnSpacing: 100, // Dinadagdagan ang distansya ng bawat column
+                        columnSpacing: 100, 
                         columns: const [
                           DataColumn(label: Text('Room No.', style: TextStyle(fontWeight: FontWeight.bold))),
                           DataColumn(label: Text('Monthly Rate', style: TextStyle(fontWeight: FontWeight.bold))),

@@ -20,9 +20,11 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
     fetchReports();
   }
 
+  // UPDATED: Path changed to match server.js (/api/reports/all)
   Future<void> fetchReports() async {
+    setState(() => isLoading = true);
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/all-reports'));
+      final response = await http.get(Uri.parse('http://localhost:3000/api/reports/all'));
       if (response.statusCode == 200) {
         setState(() {
           reports = jsonDecode(response.body);
@@ -30,32 +32,41 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         });
       }
     } catch (e) {
-      print("Error: $e");
+      print("Error fetching reports: $e");
       setState(() => isLoading = false);
     }
   }
 
+  // UPDATED: Path changed to match server.js (/api/reports/update-status)
   Future<void> updateStatus(int reportId, String newStatus) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/update-report-status'),
+        Uri.parse('http://localhost:3000/api/reports/update-status'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'report_id': reportId, 'status': newStatus}),
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Report marked as $newStatus")));
-        fetchReports(); // Refresh the list
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Report marked as $newStatus"), backgroundColor: Colors.green),
+        );
+        fetchReports(); // Refresh the list automatically
       }
     } catch (e) {
-      print(e);
+      print("Error updating status: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("TENANT REPORTS"), backgroundColor: Colors.indigo),
+      appBar: AppBar(
+        title: const Text("TENANT REPORTS", style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.indigo,
+        actions: [
+          IconButton(onPressed: fetchReports, icon: const Icon(Icons.refresh, color: Colors.white))
+        ],
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : reports.isEmpty
@@ -65,8 +76,13 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
                   itemCount: reports.length,
                   itemBuilder: (context, index) {
                     final report = reports[index];
-                    DateTime date = DateTime.parse(report['created_at']);
-                    String formattedDate = DateFormat('MMM dd, yyyy - hh:mm a').format(date);
+                    
+                    // Safe date parsing
+                    String formattedDate = "N/A";
+                    if (report['created_at'] != null) {
+                      DateTime date = DateTime.parse(report['created_at']);
+                      formattedDate = DateFormat('MMM dd, yyyy - hh:mm a').format(date);
+                    }
 
                     return Card(
                       elevation: 3,
@@ -76,8 +92,11 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
                           backgroundColor: _getStatusColor(report['status']),
                           child: const Icon(Icons.report_problem, color: Colors.white),
                         ),
-                        title: Text("${report['issue_type']} - Room ${report['room_number']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text("From: ${report['tenant_name']}\n$formattedDate"),
+                        title: Text(
+                          "${report['issue_type']} - Room ${report['room_number'] ?? 'N/A'}",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text("From: ${report['tenant_name'] ?? 'Unknown'}\n$formattedDate"),
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(15.0),
@@ -85,9 +104,25 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text("Description:", style: TextStyle(fontWeight: FontWeight.bold)),
-                                Text(report['description'] ?? "No description"),
+                                const SizedBox(height: 5),
+                                Text(report['description'] ?? "No description provided."),
                                 const SizedBox(height: 15),
-                                const Text("Actions:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                
+                                // Image display (Optional, only shows if image exists)
+                                if (report['image_url'] != null) ...[
+                                  const Text("Attached Image:", style: TextStyle(fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  Image.network(
+                                    "http://localhost:3000${report['image_url']}",
+                                    height: 200,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => const Text("Image not available"),
+                                  ),
+                                  const SizedBox(height: 15),
+                                ],
+
+                                const Text("Update Status:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                 const SizedBox(height: 10),
                                 Row(
                                   children: [
@@ -110,14 +145,20 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
   Widget _actionBtn(int id, String status, Color color) {
     return ElevatedButton(
       onPressed: () => updateStatus(id, status),
-      style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color, 
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+      ),
       child: Text(status),
     );
   }
 
-  Color _getStatusColor(String status) {
-    if (status == 'Pending') return Colors.orange;
-    if (status == 'In Progress') return Colors.blue;
-    return Colors.green;
+  Color _getStatusColor(dynamic status) {
+    String s = status?.toString() ?? 'Pending';
+    if (s == 'Pending') return Colors.orange;
+    if (s == 'In Progress') return Colors.blue;
+    if (s == 'Fixed') return Colors.green;
+    return Colors.grey;
   }
 }

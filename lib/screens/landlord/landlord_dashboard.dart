@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// MGA IMPORTS MO
+// MGA IMPORTS
 import 'landlord_add_payment_screen.dart';
 import 'room_management_screen.dart';
 import 'tenant_management_screen.dart';
@@ -34,19 +34,19 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     fetchStats();
   }
 
-  // Eto ang function na kumukuha ng data sa server.js
+  // UPDATED: Path updated to /api/rooms/dashboard-stats to match backend routes
   Future<void> fetchStats() async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/dashboard-stats'));
+      final response = await http.get(Uri.parse('http://localhost:3000/api/rooms/dashboard-stats'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           stats = {
-            "totalRooms": data['totalRooms'].toString(),
-            "occupiedRooms": data['occupiedRooms'].toString(),
-            "vacantRooms": data['vacantRooms'].toString(),
-            "totalCollected": data['totalCollected'].toString(),
-            "overdueTenants": data['overdueTenants'].toString(),
+            "totalRooms": data['totalRooms']?.toString() ?? "0",
+            "occupiedRooms": data['occupiedRooms']?.toString() ?? "0",
+            "vacantRooms": data['vacantRooms']?.toString() ?? "0",
+            "totalCollected": data['totalCollected']?.toString() ?? "0",
+            "overdueTenants": data['overdueTenants']?.toString() ?? "0",
           };
         });
       }
@@ -64,7 +64,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       const TenantManagementScreen(),
       const PaymentScreen(),
       const LandlordReportsScreen(), 
-      const SettingsScreen(),         
+      const SettingsScreen(),          
     ];
 
     return Scaffold(
@@ -89,7 +89,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                 _sidebarTile(Icons.people, "Tenant Management", 2),
                 _sidebarTile(Icons.payment, "Rent Payments", 3),
                 _sidebarTile(Icons.report_problem, "Tenant Reports", 4), 
-                _sidebarTile(Icons.settings, "Settings", 5),               
+                _sidebarTile(Icons.settings, "Settings", 5),                
               ],
             ),
           ),
@@ -152,26 +152,20 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
             spacing: 20,
             runSpacing: 20,
             children: [
-              // Add Room - Pagbalik, mag-refresh ang stats
               _actionButton("Add Room", Icons.add, () {
                 setState(() => _selectedIndex = 1);
                 fetchStats(); 
               }),
-              
-              // Register Tenant - Pagbalik, mag-refresh ang stats
               _actionButton("Register Tenant", Icons.person_add, () {
                 setState(() => _selectedIndex = 2);
                 fetchStats();
               }),
-              
-              // PROCESS PAYMENT - Automatic refresh pagka-close
               _actionButton("Process Payment", Icons.payment, () {
                 Navigator.push(
                   context, 
                   MaterialPageRoute(builder: (context) => const LandlordAddPaymentScreen())
                 ).then((_) => fetchStats()); 
               }),
-              
               _actionButton("View Reports", Icons.warning_amber, () => setState(() => _selectedIndex = 4)),
             ],
           )
@@ -217,7 +211,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       selected: isSelected,
       onTap: () {
         setState(() => _selectedIndex = index);
-        fetchStats(); // Tuwing magpapalit ng page, nag-rerefresh din ang stats
+        fetchStats(); 
       },
     );
   }

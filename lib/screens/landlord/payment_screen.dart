@@ -20,11 +20,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
     fetchAllData();
   }
 
+  // UPDATED: Added /api/payments/ to the URLs
   Future<void> fetchAllData() async {
     setState(() => isLoading = true);
     try {
-      final pendingRes = await http.get(Uri.parse('http://localhost:3000/payment-list'));
-      final historyRes = await http.get(Uri.parse('http://localhost:3000/payment-history'));
+      final pendingRes = await http.get(Uri.parse('http://localhost:3000/api/payments/list'));
+      final historyRes = await http.get(Uri.parse('http://localhost:3000/api/payments/history'));
       
       if (pendingRes.statusCode == 200 && historyRes.statusCode == 200) {
         setState(() {
@@ -39,10 +40,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  // UPDATED: Added /api/payments/
   Future<void> _processPayment(int tenantId, double amount) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/pay-rent'),
+        Uri.parse('http://localhost:3000/api/payments/pay-rent'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'tenant_id': tenantId, 'amount': amount}),
       );
@@ -53,10 +55,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
     } catch (e) { print(e); }
   }
 
+  // UPDATED: Added /api/payments/ and changed path to /approve
   Future<void> _approveOnlinePayment(int paymentId) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/approve-payment'),
+        Uri.parse('http://localhost:3000/api/payments/approve'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'payment_id': paymentId}),
       );
@@ -113,8 +116,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             unselectedLabelColor: Colors.grey,
             indicatorColor: Colors.indigo,
             tabs: [
-              Tab(text: "Pending (To Collect)", icon: Icon(Icons.pending_actions)),
-              Tab(text: "History (Paid Records)", icon: Icon(Icons.history)),
+              Tab(text: "To Collect", icon: Icon(Icons.pending_actions)),
+              Tab(text: "History", icon: Icon(Icons.history)),
             ],
           ),
           const SizedBox(height: 20),
@@ -147,13 +150,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // HEADER TABLE
             Table(
               columnWidths: const {
-                0: FlexColumnWidth(3), // Tenant Name
-                1: FlexColumnWidth(1.5), // Room
-                2: FlexColumnWidth(2), // Amount
-                3: FlexColumnWidth(3), // Action or Date
+                0: FlexColumnWidth(3),
+                1: FlexColumnWidth(1.5),
+                2: FlexColumnWidth(2),
+                3: FlexColumnWidth(3),
               },
               children: [
                 TableRow(
@@ -162,12 +164,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     _headerCell("Tenant Name"),
                     _headerCell("Room"),
                     _headerCell("Amount"),
-                    _headerCell(isHistory ? "Date Paid" : "Proof / Action"),
+                    _headerCell(isHistory ? "Date Paid" : "Action"),
                   ],
                 ),
               ],
             ),
-            // DATA TABLE (Scrollable part)
             Expanded(
               child: SingleChildScrollView(
                 child: Table(
@@ -187,7 +188,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       children: [
                         _dataCell(item['fullname']?.toString() ?? 'N/A'),
                         _dataCell("Room ${item['room_number'] ?? '?'}"),
-                        _dataCell("₱${item['amount'] ?? item['monthly_rate'] ?? '0.00'}"),
+                        _dataCell("₱${item['paid_amount'] ?? item['monthly_rate'] ?? '0.00'}"),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                           child: isHistory 
@@ -211,7 +212,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       if (hasProof) {
                                         _approveOnlinePayment(item['payment_id']);
                                       } else {
-                                        double amt = double.tryParse((item['monthly_rate'] ?? item['amount'] ?? '0').toString()) ?? 0.0;
+                                        double amt = double.tryParse((item['monthly_rate'] ?? '0').toString()) ?? 0.0;
                                         _processPayment(item['tenant_id'], amt);
                                       }
                                     },

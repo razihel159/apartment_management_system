@@ -21,9 +21,10 @@ class _LandlordAddPaymentScreenState extends State<LandlordAddPaymentScreen> {
     fetchTenants();
   }
 
+  // UPDATED: Added /api/tenants path
   Future<void> fetchTenants() async {
     try {
-      final res = await http.get(Uri.parse('http://localhost:3000/tenants'));
+      final res = await http.get(Uri.parse('http://localhost:3000/api/tenants'));
       if (res.statusCode == 200) {
         setState(() => tenants = jsonDecode(res.body));
       }
@@ -32,6 +33,7 @@ class _LandlordAddPaymentScreenState extends State<LandlordAddPaymentScreen> {
     }
   }
 
+  // UPDATED: Added /api/payments/ path
   Future<void> submitPayment() async {
     if (selectedTenantId == null || amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
@@ -41,7 +43,7 @@ class _LandlordAddPaymentScreenState extends State<LandlordAddPaymentScreen> {
     setState(() => isLoading = true);
     try {
       final res = await http.post(
-        Uri.parse('http://localhost:3000/pay-rent'),
+        Uri.parse('http://localhost:3000/api/payments/pay-rent'),
         body: jsonEncode({
           'tenant_id': selectedTenantId,
           'amount': amountController.text,
@@ -71,12 +73,12 @@ class _LandlordAddPaymentScreenState extends State<LandlordAddPaymentScreen> {
       ),
       body: Center(
         child: Container(
-          width: 500, // Fixed width para magmukhang Web Form
+          width: 500, 
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

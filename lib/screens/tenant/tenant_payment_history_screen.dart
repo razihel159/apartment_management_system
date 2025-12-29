@@ -60,7 +60,6 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Inalis ang AppBar dito dahil tinatawag ito sa loob ng PageView/Index ng Main Screen
       body: _buildBody(),
     );
   }
@@ -120,7 +119,7 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
         itemBuilder: (context, i) {
           final p = payments[i];
           
-          // Formatting ng Petsa
+          // Formatting ng Date
           DateTime date = DateTime.parse(p['payment_date']);
           String formattedDate = DateFormat('MMMM dd, yyyy').format(date);
 
@@ -169,7 +168,7 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
               ),
               trailing: const Icon(Icons.chevron_right, color: Colors.grey),
               onTap: () {
-                // Pwedeng lagyan dito ng "Show Receipt Details" dialog sa future
+                //"Show Receipt Details" dialog sa future
               },
             ),
           );

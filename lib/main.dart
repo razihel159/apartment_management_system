@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart'; // Import natin ang login screen
+import 'screens/login_screen.dart'; 
 
 void main() {
   runApp(const ApartmentApp());
@@ -17,7 +17,6 @@ class ApartmentApp extends StatelessWidget {
         primarySwatch: Colors.indigo,
         useMaterial3: true,
       ),
-      // Dito natin itatakda na LoginScreen ang unang lalabas
       home: const LoginScreen(),
     );
   }

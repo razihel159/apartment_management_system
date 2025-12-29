@@ -24,7 +24,7 @@ class _TenantReportsListScreenState extends State<TenantReportsListScreen> {
 
   Future<void> fetchReports() async {
     try {
-      // TANDAAN: Palitan ang localhost depende sa gamit mong device (10.0.2.2 o IP Address)
+      //Palitan ang localhost depende sa gamit mong device (10.0.2.2 o IP Address)
       final url = Uri.parse('http://localhost:3000/my-reports/${widget.tenantId}');
       final res = await http.get(url);
 

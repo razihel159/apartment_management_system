@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'report_issue_screen.dart';
 import 'tenant_reports_list_screen.dart';
 import 'tenant_payment_history_screen.dart'; 
-// SIGURADUHIN NA TAMA ANG FILE NAME NG UPLOAD PROOF SCREEN MO DITO:
 import 'tenant_upload_proof_screen.dart'; 
 import '../login_screen.dart';
 
@@ -136,7 +135,7 @@ class _TenantMainScreenState extends State<TenantMainScreen> {
           
           const SizedBox(height: 15),
 
-          // --- DAGDAG: PAY RENT BUTTON ---
+          // --- PAY RENT BUTTON ---
           Card(
             elevation: 4,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
