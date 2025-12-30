@@ -13,18 +13,21 @@ const upload = multer({ storage: storage });
 
 // --- ADMIN ROUTES ---
 router.get('/list', paymentController.getPaymentList);           // To Collect List
-router.get('/history', paymentController.getAllPaymentHistory);  // All Paid Records
+router.get('/history', paymentController.getAllPaymentHistory);  // NGAYON GAGANA NA ITO
 
-// UPDATED: Idinagdag ang /overdue para mag-match sa Flutter Rent Monitoring Screen
+// UPDATED: Para mag-match sa Flutter Rent Monitoring Screen
 router.get('/overdue', paymentController.getOverdueTenants);     
-router.get('/balances', paymentController.getOverdueTenants);    // Backup route para sa balances
+router.get('/balances', paymentController.getOverdueTenants);    
+router.get('/monitoring/overdue', paymentController.getOverdueTenants); // Dagdag path para sigurado
 
 router.post('/approve', paymentController.approvePayment);       // Approve online proof
 router.post('/pay-rent', paymentController.payRent);             // Walk-in/Cash payment recording
 
 // --- TENANT ROUTES ---
 router.get('/stats/:id', paymentController.getTenantStats);      // Dashboard stats ng tenant
-router.get('/my-payments/:id', paymentController.getMyPayments); // Personal history ng tenant
-router.post('/submit-proof', upload.single('proof_image'), paymentController.submitProof); // Mag-send ng screenshot
+// Ginawang /tenant/:id para mag-match sa ApiService.getTenantPaymentHistory ng Flutter
+router.get('/tenant/:id', paymentController.getMyPayments); 
+router.get('/my-payments/:id', paymentController.getMyPayments); // Backup route
+router.post('/submit-proof', upload.single('proof_image'), paymentController.submitProof); 
 
 module.exports = router;

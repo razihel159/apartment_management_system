@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:intl/intl.dart';
+import '../../services/api_service.dart';
+import 'widgets/tenant_widgets.dart';
 
 class TenantPaymentHistoryScreen extends StatefulWidget {
   final int tenantId;
@@ -15,6 +14,7 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
   List<dynamic> payments = [];
   bool isLoading = true;
   String errorMessage = "";
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -22,29 +22,18 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
     fetchPayments();
   }
 
-  // Ginawang function para pwedeng tawagin ng RefreshIndicator
   Future<void> fetchPayments() async {
+    setState(() => isLoading = true);
     try {
-      // TANDAAN: Gamitin ang 10.0.2.2 para sa Android Emulator o IP Address para sa Real Device
-      final url = Uri.parse('http://localhost:3000/my-payments/${widget.tenantId}');
-      final res = await http.get(url);
-
-      if (res.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(res.body);
-        if (mounted) {
-          setState(() {
-            payments = data['data'];
-            isLoading = false;
-            errorMessage = "";
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = "Failed to load payments";
-            isLoading = false;
-          });
-        }
+      // Gagamit na tayo ng centralized ApiService
+      final data = await _apiService.getTenantPaymentHistory(widget.tenantId);
+      
+      if (mounted) {
+        setState(() {
+          payments = data;
+          isLoading = false;
+          errorMessage = data.isEmpty ? "" : ""; 
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -53,21 +42,12 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
           isLoading = false;
         });
       }
-      print("Fetch Error: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildBody() {
-    if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (isLoading) return const Center(child: CircularProgressIndicator());
 
     if (errorMessage.isNotEmpty) {
       return Center(
@@ -75,37 +55,8 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.error_outline, color: Colors.red, size: 50),
-            const SizedBox(height: 10),
-            Text(errorMessage, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
-                setState(() => isLoading = true);
-                fetchPayments();
-              },
-              child: const Text("Retry"),
-            )
-          ],
-        ),
-      );
-    }
-
-    if (payments.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: fetchPayments,
-        child: ListView(
-          children: [
-            SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-            const Center(
-              child: Column(
-                children: [
-                  Icon(Icons.receipt_long, size: 60, color: Colors.grey),
-                  SizedBox(height: 10),
-                  Text("No payment records found.", style: TextStyle(color: Colors.grey)),
-                  Text("Swipe down to refresh", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            ),
+            Text(errorMessage),
+            ElevatedButton(onPressed: fetchPayments, child: const Text("Retry"))
           ],
         ),
       );
@@ -113,67 +64,29 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
 
     return RefreshIndicator(
       onRefresh: fetchPayments,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(15),
-        itemCount: payments.length,
-        itemBuilder: (context, i) {
-          final p = payments[i];
-          
-          // Formatting ng Date
-          DateTime date = DateTime.parse(p['payment_date']);
-          String formattedDate = DateFormat('MMMM dd, yyyy').format(date);
+      child: payments.isEmpty 
+        ? _buildEmptyState() 
+        : ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: payments.length,
+            itemBuilder: (context, i) => PaymentTile(payment: payments[i]),
+          ),
+    );
+  }
 
-          return Card(
-            elevation: 2,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withAlpha(25),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_circle, color: Colors.green),
-              ),
-              title: Text(
-                "₱${double.parse(p['amount'].toString()).toStringAsFixed(2)}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold, 
-                  fontSize: 18,
-                  color: Colors.black87
-                ),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Date: $formattedDate", style: const TextStyle(fontSize: 13)),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        p['status'].toString().toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () {
-                //"Show Receipt Details" dialog sa future
-              },
-            ),
-          );
-        },
-      ),
+  Widget _buildEmptyState() {
+    return ListView(
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+        const Center(
+          child: Column(
+            children: [
+              Icon(Icons.receipt_long, size: 60, color: Colors.grey),
+              Text("No payment records found.", style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

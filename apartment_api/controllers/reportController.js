@@ -28,8 +28,23 @@ exports.getAllReports = async (req, res) => {
         res.json(results);
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
-// Idagdag ito sa pinaka-baba ng reportController.js mo:
 
+// Kunin ang reports para sa isang specific na Tenant (Para sa Tenant App)
+// DAGDAG ITO: Ito ang kailangan para mag-display ang listahan kay Tenant
+exports.getReportsByTenant = async (req, res) => {
+    const tenantId = req.params.id;
+    try {
+        const [results] = await db.query(
+            "SELECT * FROM reports WHERE tenant_id = ? ORDER BY created_at DESC", 
+            [tenantId]
+        );
+        res.json(results);
+    } catch (err) { 
+        res.status(500).json({ error: err.message }); 
+    }
+};
+
+// Update status ng report mula sa Admin (In Progress / Fixed)
 exports.updateReportStatus = async (req, res) => {
     const { report_id, status } = req.body;
     try {

@@ -33,21 +33,31 @@ exports.addRoom = async (req, res) => {
     }
 };
 
-// 4. Dashboard Statistics
+// 4. Dashboard Statistics (UPDATED LOGIC)
 exports.getDashboardStats = async (req, res) => {
     try {
         const [total] = await db.query('SELECT COUNT(*) as count FROM rooms');
         const [occ] = await db.query('SELECT COUNT(*) as count FROM rooms WHERE status = "occupied"');
         const [vacant] = await db.query('SELECT COUNT(*) as count FROM rooms WHERE status = "available" OR status IS NULL');
-        const [rev] = await db.query('SELECT SUM(amount) as total FROM payments');
         
+        // Inupdate para sa total na "Paid" lang ngayong buwan
+        const [rev] = await db.query(`
+            SELECT SUM(amount) as total FROM payments 
+            WHERE status = "paid" 
+            AND MONTH(payment_date) = MONTH(CURRENT_DATE())
+            AND YEAR(payment_date) = YEAR(CURRENT_DATE())
+        `);
+        
+        // FIX: Binibilang na overdue ang tenant kung:
+        // - Wala silang payment record ngayong buwan
+        // - O MERON silang record pero "pending" pa ang status (status != 'paid')
         const [overdue] = await db.query(`
-            SELECT COUNT(*) as count FROM tenants 
-            WHERE id NOT IN (
-                SELECT tenant_id FROM payments 
-                WHERE MONTH(payment_date) = MONTH(CURRENT_DATE()) 
-                AND YEAR(payment_date) = YEAR(CURRENT_DATE())
-            )
+            SELECT COUNT(DISTINCT t.id) as count 
+            FROM tenants t
+            LEFT JOIN payments p ON t.id = p.tenant_id 
+                AND MONTH(p.payment_date) = MONTH(CURRENT_DATE()) 
+                AND YEAR(p.payment_date) = YEAR(CURRENT_DATE())
+            WHERE p.id IS NULL OR p.status != "paid"
         `);
 
         res.json({

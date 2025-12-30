@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../services/api_service.dart'; // Siguraduhin ang tamang path sa file mo
 
 class ReportIssueScreen extends StatefulWidget {
   final int tenantId;
@@ -14,20 +13,19 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
   final _descController = TextEditingController();
   String _selectedType = 'Plumbing';
 
+  // Ang pinalitan lang natin ay ang loob nito para kumonekta sa ApiService
   Future<void> _submitReport() async {
-    final response = await http.post(
-      Uri.parse('http://localhost:3000/submit-report'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'tenant_id': widget.tenantId,
-        'issue_type': _selectedType,
-        'description': _descController.text,
-      }),
-    );
+    final success = await ApiService().submitReport({
+      'tenant_id': widget.tenantId,
+      'issue_type': _selectedType,
+      'description': _descController.text,
+    });
 
-    if (response.statusCode == 200) {
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Report Sent!")));
       Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to send report.")));
     }
   }
 
@@ -40,7 +38,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
         child: Column(
           children: [
             DropdownButtonFormField(
-              initialValue: _selectedType,
+              value: _selectedType, // pinalitan ko lang ng 'value' (hindi initialValue) para gumana ang update
               items: ['Plumbing', 'Electrical', 'Maintenance', 'Noise', 'Others']
                   .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _selectedType = val as String),

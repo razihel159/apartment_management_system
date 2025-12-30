@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const bcrypt = require('bcrypt'); // Siguraduhing na-install ito: npm install bcrypt
 
 // 1. Kunin lahat ng tenants (may JOIN para makuha ang room_number)
 exports.getTenants = async (req, res) => {
@@ -18,11 +19,14 @@ exports.getTenants = async (req, res) => {
 exports.addTenant = async (req, res) => {
     const { name, contact, email, password, room_id } = req.body;
     try {
-        // I-save ang tenant sa database
-        // Gumagamit ng NOW() para sa date_started base sa format ng database mo
+        // Hashing the password before saving for security
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // I-save ang tenant sa database gamit ang hashed password
         await db.query(
             'INSERT INTO tenants (name, contact, email, password, room_id, date_started) VALUES (?, ?, ?, ?, ?, NOW())',
-            [name, contact, email, password, room_id]
+            [name, contact, email, hashedPassword, room_id]
         );
 
         // Kapag may tenant na, i-update ang status ng kwarto sa 'occupied'
@@ -46,18 +50,50 @@ exports.getTenantDetails = async (req, res) => {
     }
 };
 
-// 4. Update Tenant
+// 4. Update Tenant (UPDATED: Support for Profile Edit & Password Hashing)
 exports.updateTenant = async (req, res) => {
     const { id } = req.params;
     const { name, contact, email, password, room_id } = req.body;
+
     try {
-        await db.query(
-            'UPDATE tenants SET name = ?, contact = ?, email = ?, password = ?, room_id = ? WHERE id = ?',
-            [name, contact, email, password, room_id, id]
-        );
-        res.json({ success: true, message: "Tenant updated!" });
+        // Build dynamic query para hindi ma-overwrite ang fields na hindi binago
+        let query = "UPDATE tenants SET contact = ?, email = ?";
+        let params = [contact, email];
+
+        // Isasama lang ang name kung galing sa Admin update
+        if (name) {
+            query += ", name = ?";
+            params.push(name);
+        }
+        
+        // Isasama lang ang room_id kung galing sa Admin update
+        if (room_id) {
+            query += ", room_id = ?";
+            params.push(room_id);
+        }
+
+        // CHECK: Kung may pinadalang bagong password, i-hash natin bago i-save
+        if (password && password.trim() !== "") {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, salt);
+            
+            query += ", password = ?";
+            params.push(hashedPassword);
+        }
+
+        query += " WHERE id = ?";
+        params.push(id);
+
+        const [result] = await db.query(query, params);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: "Tenant not found" });
+        }
+
+        res.json({ success: true, message: "Profile updated successfully!" });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("Update Error:", err);
+        res.status(500).json({ success: false, error: err.message });
     }
 };
 

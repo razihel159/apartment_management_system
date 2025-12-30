@@ -75,6 +75,10 @@ class _RentMonitoringScreenState extends State<RentMonitoringScreen> {
                         // Safe parsing
                         double balanceValue = double.tryParse(data['balance'].toString()) ?? 0.0;
                         
+                        // Check logic for status display
+                        String statusLabel = data['status']?.toString().toUpperCase() ?? "OVERDUE";
+                        bool isPending = statusLabel == "PENDING";
+
                         return DataRow(cells: [
                           DataCell(Text(data['name'] ?? 'N/A')),
                           DataCell(Text(data['room_number']?.toString() ?? 'N/A')),
@@ -84,12 +88,17 @@ class _RentMonitoringScreenState extends State<RentMonitoringScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.red[100],
+                                // Magiging Orange kung Pending, Red kung Overdue
+                                color: isPending ? Colors.orange[100] : Colors.red[100],
                                 borderRadius: BorderRadius.circular(20)
                               ),
-                              child: const Text(
-                                "OVERDUE", 
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 10),
+                              child: Text(
+                                statusLabel, 
+                                style: TextStyle(
+                                  color: isPending ? Colors.orange[900] : Colors.red, 
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 10
+                                ),
                               ),
                             )
                           ),

@@ -1,40 +1,76 @@
 const db = require('../config/db');
-
-// Ito yung dating logic mo sa login na nawala
-const updateOverdueStatus = async () => {
-    try {
-        const today = new Date();
-        const currentDay = today.getDate();
-        const [tenants] = await db.query("SELECT id, name FROM tenants");
-        
-        for (let tenant of tenants) {
-            const [payments] = await db.query(`
-                SELECT * FROM payments 
-                WHERE tenant_id = ? 
-                AND MONTH(payment_date) = MONTH(CURRENT_DATE()) 
-                AND YEAR(payment_date) = YEAR(CURRENT_DATE())
-            `, [tenant.id]);
-
-            if (payments.length === 0 && currentDay > 5) {
-                // Status update logic here
-            }
-        }
-        console.log("Overdue check completed.");
-    } catch (err) {
-        console.error("Overdue Logic Error:", err.message);
-    }
-};
+const bcrypt = require('bcrypt');
 
 exports.login = async (req, res) => {
     const { email, password } = req.body;
-    try {
-        await updateOverdueStatus(); // Tinatawag pa rin natin dito
-        const [admin] = await db.query('SELECT *, "admin" as role FROM users WHERE email = ? AND password = ?', [email, password]);
-        if (admin.length > 0) return res.json({ success: true, role: 'admin', user: admin[0] });
 
-        const [tenant] = await db.query('SELECT *, "tenant" as role FROM tenants WHERE email = ? AND password = ?', [email, password]);
-        if (tenant.length > 0) return res.json({ success: true, role: 'tenant', user: tenant[0] });
+    try {
+        // 1. TENANT CHECK
+        const [rows] = await db.query('SELECT * FROM tenants WHERE email = ?', [email]);
+
+        if (rows.length > 0) {
+            const user = rows[0];
+            let isMatch = false;
+
+            // FLEXIBLE PASSWORD CHECK
+            try {
+                // Una: Subukan ang Bcrypt (para sa bagong/updated accounts)
+                isMatch = await bcrypt.compare(password, user.password);
+            } catch (e) {
+                isMatch = false;
+            }
+
+            // Pangalawa: Kung hindi match sa bcrypt, i-check kung plain text match 
+            // Ito ang papayag sa 'password123' na nasa screenshot mo
+            if (!isMatch && password === user.password) {
+                isMatch = true;
+            }
+
+            if (isMatch) {
+                const { password: _, ...userData } = user;
+                return res.json({
+                    success: true,
+                    message: "Login successful!",
+                    user: userData,
+                    role: 'tenant'
+                });
+            } else {
+                return res.status(401).json({ success: false, message: "Invalid email or password" });
+            }
+        }
+
+        // 2. ADMIN CHECK (Fixed for 'users' table without 'role' column)
+        const [adminRows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        
+        if (adminRows.length > 0) {
+            const admin = adminRows[0];
+            let isAdminMatch = false;
+
+            if (password === admin.password) {
+                isAdminMatch = true;
+            } else {
+                try {
+                    isAdminMatch = await bcrypt.compare(password, admin.password);
+                } catch (e) {
+                    isAdminMatch = false;
+                }
+            }
+
+            if (isAdminMatch) {
+                const { password: _, ...adminData } = admin;
+                return res.json({
+                    success: true,
+                    message: "Admin login successful!",
+                    user: adminData,
+                    role: 'admin'
+                });
+            }
+        }
 
         res.status(401).json({ success: false, message: "Invalid email or password" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+
+    } catch (err) {
+        console.error("Login Error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
 };

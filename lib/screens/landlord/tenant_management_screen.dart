@@ -108,7 +108,7 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
                     isExpanded: true,
-                    value: selectedRoomId,
+                    initialValue: selectedRoomId,
                     hint: const Text("Select Vacant Room"),
                     items: vacantRooms.map((room) {
                       return DropdownMenuItem<String>(

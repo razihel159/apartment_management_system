@@ -91,7 +91,7 @@ class _LandlordAddPaymentScreenState extends State<LandlordAddPaymentScreen> {
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(border: OutlineInputBorder()),
-                value: selectedTenantId,
+                initialValue: selectedTenantId,
                 items: tenants.map((t) {
                   return DropdownMenuItem<String>(
                     value: t['id'].toString(),

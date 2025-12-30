@@ -20,27 +20,29 @@ class _PaymentScreenState extends State<PaymentScreen> {
     fetchAllData();
   }
 
-  // UPDATED: Added /api/payments/ to the URLs
   Future<void> fetchAllData() async {
+    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       final pendingRes = await http.get(Uri.parse('http://localhost:3000/api/payments/list'));
       final historyRes = await http.get(Uri.parse('http://localhost:3000/api/payments/history'));
       
       if (pendingRes.statusCode == 200 && historyRes.statusCode == 200) {
+        if (!mounted) return;
         setState(() {
           pendingList = jsonDecode(pendingRes.body);
           historyList = jsonDecode(historyRes.body);
           isLoading = false;
         });
+        // Debug para makita mo sa console ang actual keys
+        print("DEBUG: Pending Data -> ${pendingRes.body}");
       }
     } catch (e) {
-      print("Error: $e");
-      setState(() => isLoading = false);
+      print("Error fetching payments: $e");
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  // UPDATED: Added /api/payments/
   Future<void> _processPayment(int tenantId, double amount) async {
     try {
       final response = await http.post(
@@ -55,7 +57,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     } catch (e) { print(e); }
   }
 
-  // UPDATED: Added /api/payments/ and changed path to /approve
   Future<void> _approveOnlinePayment(int paymentId) async {
     try {
       final response = await http.post(
@@ -180,15 +181,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   },
                   border: TableBorder(horizontalInside: BorderSide(color: Colors.grey[300]!, width: 0.5)),
                   children: data.map((item) {
+                    // MAPPING CHECK: Ginagamit 'fullname' o 'name'?
+                    String displayName = item['fullname']?.toString() ?? item['name']?.toString() ?? 'N/A';
+                    
+                    // UPDATE: Dinagdagan ng item['monthly_rate'] para kina Rebeckah at Ian
+                    String displayAmount = (item['paid_amount'] ?? item['monthly_rate'] ?? item['amount'] ?? item['rate'] ?? '0.00').toString();
+
                     bool hasProof = !isHistory && 
-                                    item['payment_status'] == 'pending' && 
+                                    (item['status'] == 'pending' || item['payment_status'] == 'pending') && 
                                     item['proof_image'] != null;
 
                     return TableRow(
                       children: [
-                        _dataCell(item['fullname']?.toString() ?? 'N/A'),
+                        _dataCell(displayName),
                         _dataCell("Room ${item['room_number'] ?? '?'}"),
-                        _dataCell("₱${item['paid_amount'] ?? item['monthly_rate'] ?? '0.00'}"),
+                        _dataCell("₱$displayAmount"),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                           child: isHistory 
@@ -210,10 +217,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   ElevatedButton(
                                     onPressed: () {
                                       if (hasProof) {
-                                        _approveOnlinePayment(item['payment_id']);
+                                        _approveOnlinePayment(item['payment_id'] ?? item['id']);
                                       } else {
-                                        double amt = double.tryParse((item['monthly_rate'] ?? '0').toString()) ?? 0.0;
-                                        _processPayment(item['tenant_id'], amt);
+                                        double amt = double.tryParse(displayAmount) ?? 0.0;
+                                        _processPayment(item['tenant_id'] ?? item['id'], amt);
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
