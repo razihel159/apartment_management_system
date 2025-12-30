@@ -1,16 +1,65 @@
-# apartment_management_system
+# 🏢 Apartment Management System
 
-A new Flutter project.
+A comprehensive full-stack solution designed to streamline apartment rentals, tenant management, and payment tracking.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## ✨ Features
 
-A few resources to get you started if this is your first Flutter project:
+### 👨‍💼 Landlord / Admin Portal
+* **Tenant Management**: Full CRUD operations (Create, Read, Update, Delete) for tenant records.
+* **Room Inventory**: Real-time status tracking (Occupied/Available) and room assignment.
+* **Payment Oversight**: View payment histories and verify digital receipts submitted by tenants.
+* **Issue Tracking**: Monitor maintenance reports sent by tenants.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 👤 Tenant Mobile App
+* **Profile Control**: Update contact information and secure password management.
+* **Digital Payments**: Upload proof of payment (receipts) directly from the mobile gallery.
+* **Service Requests**: File maintenance reports for room issues.
+* **Rent Status**: Real-time view of monthly dues and payment history.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## 🛠 Tech Stack
+
+- **Frontend:** Flutter (Dart)
+- **Backend:** Node.js (Express.js)
+- **Database:** MySQL
+- **Security:** BCrypt Password Hashing
+
+---
+
+## 📂 Folder Structure
+
+```text
+Apartment Management System/
+├── apartment_api/          # Backend REST API
+│   ├── controllers/        # Business logic & Database operations
+│   ├── routes/             # API Endpoints definition
+│   ├── config/             # DB Connection settings
+│   └── uploads/            # Storage for tenant receipts
+├── lib/                    # Flutter Frontend
+│   ├── screens/            # UI for Admin and Tenant modules
+│   ├── services/           # API Service layer (HTTP)
+│   └── widgets/            # Reusable UI components
+└── .gitignore              # Git exclusion rules
+
+🚀 Installation & Setup
+Backend
+Navigate to the api folder: cd apartment_api
+Install dependencies: npm install
+Configure your MySQL credentials in config/db.js.
+Start the server: node server.js
+
+Frontend
+Fetch Flutter packages: flutter pub get.
+Ensure the API URL in api_service.dart matches your server's IP.
+Run the app: flutter run.
+
+🔒 Security
+This system prioritizes data security by hashing user passwords using BCrypt. It employs a hybrid authentication logic to support the transition of legacy data to a secure hashed format without service interruption.
+
+📝 Future Plans
+[ ] Admin Approval/Rejection logic for payments.
+[ ] Automated PDF Invoice generation.
+[ ] Revenue analytics dashboard with charts.
