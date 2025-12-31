@@ -186,7 +186,7 @@ class PaymentTile extends StatelessWidget {
       formattedDate = DateFormat('MMMM dd, yyyy').format(date);
     }
     
-    // Siniguro ang key name na 'amount' (base sa DB)
+    // to make sure ang key name na 'amount' (base sa DB)
     double amount = double.tryParse(payment['amount'].toString()) ?? 0.0;
 
     return Card(

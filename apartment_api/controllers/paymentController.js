@@ -72,7 +72,7 @@ exports.getTenantStats = async (req, res) => {
 
         res.json({
             success: true,
-            // Ito ang mga fields na kailangan ng Flutter app mo:
+            // Ito ang mga fields na kailangan ng Flutter app:
             room_number: roomInfo.length > 0 ? roomInfo[0].room_number : "---",
             monthly_rent: roomInfo.length > 0 ? roomInfo[0].rate : 0,
             totalPaid: totalPaid[0].total || 0,

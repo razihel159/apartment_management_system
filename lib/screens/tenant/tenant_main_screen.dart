@@ -82,7 +82,7 @@ class _TenantMainScreenState extends State<TenantMainScreen> {
     }
   }
 
-  // BAGONG FUNCTION: Para i-save ang binagong Profile at Password
+  // NEW FUNCTION: Para i-save ang binagong Profile at Password
   Future<void> _handleSaveProfile() async {
     setState(() => isLoading = true);
     
@@ -175,7 +175,7 @@ class _TenantMainScreenState extends State<TenantMainScreen> {
               controller: _passwordController, 
               icon: Icons.lock, 
               enabled: true,
-              // obscureText: true, // Siguraduhin na ang EditableField mo ay may ganito
+              // obscureText: true, // Siguraduhin na ang EditableField  ay may ganito
             ),
           ),
           

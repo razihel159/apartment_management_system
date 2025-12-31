@@ -14,14 +14,14 @@ exports.login = async (req, res) => {
 
             // FLEXIBLE PASSWORD CHECK
             try {
-                // Una: Subukan ang Bcrypt (para sa bagong/updated accounts)
+                // Subukan ang Bcrypt (para sa bagong/updated accounts)
                 isMatch = await bcrypt.compare(password, user.password);
             } catch (e) {
                 isMatch = false;
             }
 
-            // Pangalawa: Kung hindi match sa bcrypt, i-check kung plain text match 
-            // Ito ang papayag sa 'password123' na nasa screenshot mo
+            // Kung hindi match sa bcrypt, i-check kung plain text match 
+            // Ito ang papayag sa 'password123' 
             if (!isMatch && password === user.password) {
                 isMatch = true;
             }

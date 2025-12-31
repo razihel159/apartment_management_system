@@ -13,7 +13,7 @@ const upload = multer({ storage: storage });
 
 // --- ADMIN ROUTES ---
 router.get('/list', paymentController.getPaymentList);           // To Collect List
-router.get('/history', paymentController.getAllPaymentHistory);  // NGAYON GAGANA NA ITO
+router.get('/history', paymentController.getAllPaymentHistory);  
 
 // UPDATED: Para mag-match sa Flutter Rent Monitoring Screen
 router.get('/overdue', paymentController.getOverdueTenants);     
@@ -25,7 +25,6 @@ router.post('/pay-rent', paymentController.payRent);             // Walk-in/Cash
 
 // --- TENANT ROUTES ---
 router.get('/stats/:id', paymentController.getTenantStats);      // Dashboard stats ng tenant
-// Ginawang /tenant/:id para mag-match sa ApiService.getTenantPaymentHistory ng Flutter
 router.get('/tenant/:id', paymentController.getMyPayments); 
 router.get('/my-payments/:id', paymentController.getMyPayments); // Backup route
 router.post('/submit-proof', upload.single('proof_image'), paymentController.submitProof); 

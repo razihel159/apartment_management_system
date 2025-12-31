@@ -25,7 +25,7 @@ class _TenantPaymentHistoryScreenState extends State<TenantPaymentHistoryScreen>
   Future<void> fetchPayments() async {
     setState(() => isLoading = true);
     try {
-      // Gagamit na tayo ng centralized ApiService
+      // Gagamit ng centralized ApiService
       final data = await _apiService.getTenantPaymentHistory(widget.tenantId);
       
       if (mounted) {

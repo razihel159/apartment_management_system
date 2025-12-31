@@ -4,19 +4,19 @@ import 'package:http/http.dart' as http;
 class ApiService {
   // CONFIGURATION:
   // - Gamitin ang "http://localhost:3000/api" kung Chrome/Web.
-  // - Gamitin ang iyong Local IP (e.g. 192.168.1.5:3000/api) kung physical phone.
+  // - Gamitin ang Local IP (e.g. 192.168.xxx.xxx/api) kung physical phone.
   static const String baseUrl = "http://localhost:3000/api";
 
   // --- HELPER PARA SA LISTS (UPDATED PARA SA DB CONNECTIVITY) ---
   List<dynamic> _handleListResponse(http.Response res) {
-    // Nagdagdag ng print para makita mo sa VS Code Debug Console kung anong data ang dumadating
+    // Nagdagdag ng print para makita sa VS Code Debug Console kung anong data ang dumadating
     print("DEBUG API RESPONSE [${res.request?.url}]: ${res.body}");
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
       if (decoded is List) return decoded;
       if (decoded is Map) {
-        // Idinagdag itong mga keys na ito para sigurado ang koneksyon sa DB fields
+        // Idinagdag itong mga keys na ito para sigurado ang connection sa DB fields
         if (decoded.containsKey('data')) return decoded['data'];
         if (decoded.containsKey('reports')) return decoded['reports'];
         if (decoded.containsKey('payments')) return decoded['payments'];

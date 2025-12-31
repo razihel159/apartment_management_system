@@ -4,10 +4,10 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
 
-// 1. ROUTES IMPORT (Dito mo ilagay ang import)
+// 1. ROUTES IMPORT (Dito ilagay ang import)
 const authRoutes = require('./routes/authRoutes');
 const roomRoutes = require('./routes/roomRoutes');
-const tenantRoutes = require('./routes/tenantRoutes'); // <--- SIGURADUHING NANDITO ITO
+const tenantRoutes = require('./routes/tenantRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 
@@ -15,7 +15,7 @@ const app = express();
 
 // MIDDLEWARES (Dapat mauna ang mga ito bago ang routes)
 app.use(cors());
-app.use(express.json()); // <--- DAGDAG MO ITO PARA SA POST/REGISTER
+app.use(express.json()); 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -26,7 +26,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 app.use('/uploads', express.static('uploads'));
 
-// 2. USE ROUTES (Dito mo ikakabit ang endpoint)
+// 2. USE ROUTES (Dito ikakabit ang endpoint)
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/tenants', tenantRoutes); // <--- DITO NAKAKABIT ANG TENANT LOGIC

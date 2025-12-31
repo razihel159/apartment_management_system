@@ -72,7 +72,7 @@ exports.updateTenant = async (req, res) => {
             params.push(room_id);
         }
 
-        // CHECK: Kung may pinadalang bagong password, i-hash natin bago i-save
+        // CHECK: Kung may pinadalang bagong password, i-hash bago i-save
         if (password && password.trim() !== "") {
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);

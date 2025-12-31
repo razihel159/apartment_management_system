@@ -34,7 +34,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           historyList = jsonDecode(historyRes.body);
           isLoading = false;
         });
-        // Debug para makita mo sa console ang actual keys
+        // Debug para makita sa console ang actual keys
         print("DEBUG: Pending Data -> ${pendingRes.body}");
       }
     } catch (e) {
@@ -184,7 +184,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     // MAPPING CHECK: Ginagamit 'fullname' o 'name'?
                     String displayName = item['fullname']?.toString() ?? item['name']?.toString() ?? 'N/A';
                     
-                    // UPDATE: Dinagdagan ng item['monthly_rate'] para kina Rebeckah at Ian
+                    // UPDATE: Dinagdagan ng item['monthly_rate'] 
                     String displayAmount = (item['paid_amount'] ?? item['monthly_rate'] ?? item['amount'] ?? item['rate'] ?? '0.00').toString();
 
                     bool hasProof = !isHistory && 

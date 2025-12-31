@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     setState(() => _isLoading = true);
 
-    // Tawagin ang ApiService sa halip na mag-http post dito
+    // Tawagin ang ApiService imbis na mag-http post dito
     final result = await _apiService.login(
       _emailController.text,
       _passwordController.text,

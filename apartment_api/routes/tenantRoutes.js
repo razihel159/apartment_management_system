@@ -7,7 +7,7 @@ const tenantController = require('../controllers/tenantController');
 router.get('/', tenantController.getTenants);
 router.get('/list', tenantController.getTenants);
 
-// 2. Kunin ang detalye ng isang specific na tenant
+// 2. Kunin ang details ng isang specific na tenant
 router.get('/:id', tenantController.getTenantDetails);
 
 // 3. Update at Delete Tenant
@@ -15,7 +15,6 @@ router.put('/update/:id', tenantController.updateTenant);
 router.delete('/delete/:id', tenantController.deleteTenant);
 
 // 4. Register o Mag-add ng Tenant
-// Ito ang tinatawag ng Flutter 'registerTenant' function mo
 router.post('/register', tenantController.addTenant);
 router.post('/add', tenantController.addTenant); // Backup route para sa flexibility
 
